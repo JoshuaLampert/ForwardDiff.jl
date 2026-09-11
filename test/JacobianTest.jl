@@ -449,7 +449,11 @@ end
     @test_throws ArgumentError eigen(Symmetric(Dual{TestTag}.([2.0 0.0; 0.0 2.0], [1.0 0.0; 0.0 0.0])))
     @test_throws ArgumentError eigen(SymTridiagonal(Dual{TestTag}.([2.0, 2.0], [1.0, 0.0]),
                                                     Dual{TestTag}.([0.0], [0.0])))
-    # `eigvals` never divides by the eigenvalue gaps and is unaffected
+    # `eigvals` does not divide by the eigenvalue gaps, so it returns rather than throwing.
+    # What it returns is the diagonal of the compressed perturbation, which coincides with
+    # the derivative of the eigenvalue branches only when the perturbation leaves the
+    # degeneracy unsplit, as it does here -- and `2` and `2 + t` still swap order at
+    # `t = 0`, so even this result is one-sided. What is pinned is that `eigvals` still runs.
     @test eigvals(Dual{TestTag}.([2.0 0.0; 0.0 2.0], [1.0 0.0; 0.0 0.0])) ==
           Dual{TestTag}.([2.0, 2.0], [1.0, 0.0])
     # equal values with differing partials would divide by a `Dual` with a zero value
