@@ -987,8 +987,16 @@ end
 function _eigvals_general(A::StridedMatrix{Dual{Tg,T,N}}; kwargs...) where {Tg,T<:Real,N}
     λ, U = _eigen!!(value.(A); kwargs...)
     luU = lu(U)
-    # `Ȧ * U` is a temporary as well, so the solve can overwrite it
-    parts = ntuple(j -> diag(ldiv!(luU, partials.(A, j) * U)), N)
+    # `diag(inv(U) * Ȧ * U)` without forming the second product: entry `i` is row `i` of
+    # `inv(U) * Ȧ` against column `i` of `U`, which is `n` multiplications rather than a
+    # matmul. Only the diagonal is wanted here, unlike in `_eigen_general`. One `n^2` buffer
+    # serves every direction, so the loop allocates only the result vectors.
+    B = similar(U)
+    parts = ntuple(N) do j
+        B .= partials.(A, j)
+        ldiv!(luU, B)
+        map((b, u) -> sum(prod, zip(b, u)), eachrow(B), eachcol(U))
+    end
     return _to_duals(Val(Tg), λ, parts)
 end
 
